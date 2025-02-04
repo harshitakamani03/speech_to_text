@@ -16,18 +16,18 @@ import io
 load_dotenv()
 
 # API Keys
-DEEPGRAM_API_KEY     = st.secrets("DEEPGRAM_API_KEY")
-OPENAI_API_KEY       = st.secrets("OPENAI_API_KEY")
-ASSEMBLYAI_API_KEY   = st.secrets("ASSEMBLYAI_API_KEY")
+DEEPGRAM_API_KEY     = os.getenv("DEEPGRAM_API_KEY")
+OPENAI_API_KEY       = os.getenv("OPENAI_API_KEY")
+ASSEMBLYAI_API_KEY   = os.getenv("ASSEMBLYAI_API_KEY")
 
 # Single DATABASE_URL
-DATABASE_URL = st.secrets("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # AWS S3 Bucket info
-AWS_ACCESS_KEY_ID     = st.secrets("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = st.secrets("AWS_SECRET_ACCESS_KEY")
-AWS_DEFAULT_REGION    = st.secrets("AWS_DEFAULT_REGION")
-AWS_S3_BUCKET_NAME    = st.secrets("AWS_S3_BUCKET_NAME")
+AWS_ACCESS_KEY_ID     = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_DEFAULT_REGION    = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+AWS_S3_BUCKET_NAME    = os.getenv("AWS_S3_BUCKET_NAME")
 
 # Department options
 DEPARTMENTS = [
