@@ -97,18 +97,16 @@ def transcribe_deepgram(audio_bytes: bytes) -> str:
 
 
 def transcribe_whisper(audio_bytes: bytes) -> str:
-    """Transcribe WAV bytes with OpenAI's Whisper API."""
+    """Transcribe WAV bytes with OpenAI's Whisper API using in-memory BytesIO."""
     if not OPENAI_API_KEY:
         return "Missing OpenAI API key."
 
     openai.api_key = OPENAI_API_KEY
     try:
-        with open("temp_audio.wav", "wb") as f:
-            f.write(audio_bytes)
-
-        with open("temp_audio.wav", "rb") as audio_file:
-            transcript_data = openai.Audio.transcribe("whisper-1", audio_file)
-
+        # Use an in-memory buffer rather than writing a local file
+        audio_file = io.BytesIO(audio_bytes)
+        audio_file.name = "temp_audio.wav"  # necessary for OpenAI to accept it as an audio file
+        transcript_data = openai.Audio.transcribe("whisper-1", audio_file)
         return transcript_data["text"].strip()
     except Exception as e:
         st.error(f"Whisper transcription error: {e}")
@@ -347,11 +345,11 @@ def main():
         st.subheader("Transcribed Results")
         tabs = st.tabs(["Deepgram", "Whisper", "AssemblyAI"])
         with tabs[0]:
-            st.write(deepgram_text if deepgram_text else "_No transcript_")
+            st.write(deepgram_text if deepgram_text else "No transcript")
         with tabs[1]:
-            st.write(whisper_text if whisper_text else "_No transcript_")
+            st.write(whisper_text if whisper_text else "No transcript")
         with tabs[2]:
-            st.write(assemblyai_text if assemblyai_text else "_No transcript_")
+            st.write(assemblyai_text if assemblyai_text else "No transcript")
 
         # --- Choose best transcript ---
         st.subheader("Choose the most accurate transcript")
@@ -359,6 +357,7 @@ def main():
 
         # --- Save to database ---
         if st.button("Save Transcript"):
+            # Ensure at least one transcript is non-empty
             if not (deepgram_text.strip() or whisper_text.strip() or assemblyai_text.strip()):
                 st.warning("All transcripts are empty. Cannot save.")
             else:
@@ -373,5 +372,6 @@ def main():
                 st.success("Record saved to PostgreSQL successfully!")
 
 
+# IMPORTANT: Fix the entry-point check here
 if __name__ == "__main__":
     main()
