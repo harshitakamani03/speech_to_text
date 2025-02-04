@@ -316,7 +316,7 @@ def main():
     """, unsafe_allow_html=True)
 
     # Title
-    st.title("Voice to Text Testing (OpenAI >= 1.0.0 with Logging)")
+    st.title("Voice to Text Testing")
 
     # Check missing credentials
     missing_keys = []
