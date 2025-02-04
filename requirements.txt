@@ -1,5 +1,5 @@
 streamlit
-st_audiorec
+streamlit_audiorec
 openai
 requests
 boto3
