@@ -25,7 +25,7 @@ ASSEMBLYAI_API_KEY   = st.secrets["ASSEMBLYAI_API_KEY"]
 DATABASE_URL         = st.secrets["DATABASE_URL"]
 AWS_ACCESS_KEY_ID     = st.secrets["AWS_ACCESS_KEY_ID"]
 AWS_SECRET_ACCESS_KEY = st.secrets["AWS_SECRET_ACCESS_KEY"]
-AWS_DEFAULT_REGION    = st.secrets["AWS_DEFAULT_REGION", "us-east-1"]
+AWS_DEFAULT_REGION    = st.secrets["AWS_DEFAULT_REGION"]
 AWS_S3_BUCKET_NAME    = st.secrets["AWS_S3_BUCKET_NAME"]
 
 # ----------------------------------------------------------------------
