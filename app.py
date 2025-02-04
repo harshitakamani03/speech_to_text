@@ -105,30 +105,30 @@ def transcribe_deepgram(audio_bytes: bytes) -> str:
         return ""
 
 def transcribe_whisper(audio_bytes: bytes) -> str:
-    """
-    Transcribe WAV bytes using the older, stable method:
-        openai.Audio.transcribe("whisper-1", audio_file)
-    """
+    """Transcribe WAV bytes with the new `openai.Audio.create_transcription` method."""
     if not OPENAI_API_KEY:
-        logger.warning("Missing OpenAI API key.")
         return "Missing OpenAI API key."
 
     openai.api_key = OPENAI_API_KEY
-
-    temp_file = "temp_whisper.wav"
     try:
-        # Write the audio bytes to a local file first
-        with open(temp_file, "wb") as f:
+        # Write bytes to a temp file first
+        temp_filename = "temp_audio.wav"
+        with open(temp_filename, "wb") as f:
             f.write(audio_bytes)
 
-        # Now read it back into the Whisper API
-        with open(temp_file, "rb") as audio_file:
-            response = openai.Audio.transcribe("whisper-1", audio_file)
+        # Now open and pass to the new API
+        with open(temp_filename, "rb") as audio_file:
+            # New style for openai>=1.0.0
+            response = openai.Audio.create_transcription(
+                file=audio_file,
+                model="whisper-1"
+            )
 
-        logger.info(f"Whisper response: {response}")
+        # The response should have a "text" key
         return response["text"].strip()
+
     except Exception as e:
-        logger.error(f"Whisper transcription error: {e}", exc_info=True)
+        st.error(f"Whisper transcription error: {e}")
         return ""
 
 def transcribe_assemblyai(audio_bytes: bytes) -> str:
