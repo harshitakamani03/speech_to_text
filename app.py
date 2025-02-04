@@ -123,7 +123,10 @@ ef transcribe_whisper(audio_bytes: bytes) -> str:
 
         # Now read it back into the Whisper API
         with open(temp_file, "rb") as audio_file:
-            response = openai.Audio.create_transcription("whisper-1", audio_file)
+            response = openai.Audio.create_transcription(
+                file=audio_file,
+                model="whisper-1"
+            )
 
         #logger.info(f"Whisper response: {response}")
         return response["text"].strip()
