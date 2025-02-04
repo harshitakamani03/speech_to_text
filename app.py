@@ -6,7 +6,6 @@ import psycopg2
 import psycopg2.extras
 import os
 import time
-from dotenv import load_dotenv
 import concurrent.futures
 import uuid
 import boto3
@@ -15,21 +14,26 @@ import json
 import logging
 
 # ----------------------------------------------------------------------
-# 1) Load environment variables from .env
+# 1) Configure Logging
 # ----------------------------------------------------------------------
-load_dotenv()
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)  # Show debug/info/error logs in console
 
+# ----------------------------------------------------------------------
+# 2) Read Secrets (Streamlit Cloud style) or environment variables
+#    Adjust as needed if you still rely on os.getenv(). 
+# ----------------------------------------------------------------------
 DEEPGRAM_API_KEY     = st.secrets["DEEPGRAM_API_KEY"]
 OPENAI_API_KEY       = st.secrets["OPENAI_API_KEY"]
 ASSEMBLYAI_API_KEY   = st.secrets["ASSEMBLYAI_API_KEY"]
 DATABASE_URL         = st.secrets["DATABASE_URL"]
 AWS_ACCESS_KEY_ID     = st.secrets["AWS_ACCESS_KEY_ID"]
 AWS_SECRET_ACCESS_KEY = st.secrets["AWS_SECRET_ACCESS_KEY"]
-AWS_DEFAULT_REGION    = st.secrets["AWS_DEFAULT_REGION"]
+AWS_DEFAULT_REGION    = st.secrets.get("AWS_DEFAULT_REGION", "us-east-1")
 AWS_S3_BUCKET_NAME    = st.secrets["AWS_S3_BUCKET_NAME"]
 
 # ----------------------------------------------------------------------
-# 2) Configuration
+# 3) Configuration / Constants
 # ----------------------------------------------------------------------
 DEPARTMENTS = [
     "Cardiology",
@@ -53,17 +57,13 @@ DEPARTMENTS = [
     "Endocrinology",
 ]
 
-# Set up logging so we see errors in the console/terminal
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
-
 # ----------------------------------------------------------------------
-# 3) Upload to S3
+# 4) Upload audio bytes to S3
 # ----------------------------------------------------------------------
 def upload_audio_to_s3(audio_bytes: bytes) -> str:
-    """Uploads audio to S3 and returns a public or presigned URL."""
+    """Uploads audio bytes to S3 and returns a public or presigned URL."""
     if not AWS_S3_BUCKET_NAME:
-        raise ValueError("Missing AWS_S3_BUCKET_NAME environment variable.")
+        raise ValueError("Missing AWS_S3_BUCKET_NAME.")
 
     s3 = boto3.client(
         "s3",
@@ -82,11 +82,12 @@ def upload_audio_to_s3(audio_bytes: bytes) -> str:
     return audio_url
 
 # ----------------------------------------------------------------------
-# 4) Transcription Functions
+# 5) Transcription Functions
 # ----------------------------------------------------------------------
 def transcribe_deepgram(audio_bytes: bytes) -> str:
-    """Transcribe WAV bytes with Deepgram's medical model."""
+    """Use Deepgram's medical model to transcribe the WAV bytes."""
     if not DEEPGRAM_API_KEY:
+        logger.warning("Missing Deepgram API key.")
         return "Missing Deepgram API key."
 
     url = "https://api.deepgram.com/v1/listen?model=nova-2-medical"
@@ -102,36 +103,47 @@ def transcribe_deepgram(audio_bytes: bytes) -> str:
         return transcript.strip()
     except Exception as e:
         st.error(f"Deepgram transcription error: {e}")
+        logger.error(f"Deepgram error: {e}", exc_info=True)
         return ""
 
-ef transcribe_whisper(audio_bytes: bytes) -> str:
+def transcribe_whisper(audio_bytes: bytes) -> str:
     """
-    Transcribe WAV bytes using the older, stable method:
-        openai.Audio.transcribe("whisper-1", audio_file)
+    Transcribe WAV bytes with OpenAI's new 'Audio.create_transcription' method
+    (requires openai>=1.0.0). Includes logging statements for debug.
     """
     if not OPENAI_API_KEY:
-        #logger.warning("Missing OpenAI API key.")
+        logger.warning("Missing OpenAI API key.")
         return "Missing OpenAI API key."
 
     openai.api_key = OPENAI_API_KEY
-
     temp_file = "temp_whisper.wav"
+
     try:
-        # Write the audio bytes to a local file first
+        # 1) Write the bytes to a temp WAV file
         with open(temp_file, "wb") as f:
             f.write(audio_bytes)
 
-        # Now read it back into the Whisper API
+        # 2) Debug: log file size
+        file_size = os.path.getsize(temp_file)
+        logger.debug(f"Whisper WAV file size: {file_size} bytes")
+
+        # 3) Transcribe using create_transcription
         with open(temp_file, "rb") as audio_file:
             response = openai.Audio.create_transcription(
                 file=audio_file,
                 model="whisper-1"
             )
 
-        #logger.info(f"Whisper response: {response}")
-        return response["text"].strip()
+        # 4) Info: log the full response
+        logger.info(f"Whisper response: {response}")
+
+        # 5) Extract text field
+        text = response.get("text", "")
+        return text.strip()
+
     except Exception as e:
-        #logger.error(f"Whisper transcription error: {e}", exc_info=True)
+        st.error(f"Whisper transcription error: {e}")
+        logger.error(f"Whisper transcription error: {e}", exc_info=True)
         return ""
 
 def transcribe_assemblyai(audio_bytes: bytes) -> str:
@@ -143,6 +155,7 @@ def transcribe_assemblyai(audio_bytes: bytes) -> str:
     4) Return transcript
     """
     if not ASSEMBLYAI_API_KEY:
+        logger.warning("Missing AssemblyAI API key.")
         return "Missing AssemblyAI API key."
 
     temp_file = "temp_assembly.wav"
@@ -159,16 +172,16 @@ def transcribe_assemblyai(audio_bytes: bytes) -> str:
         upload_result = upload_resp.json()
     except Exception as e:
         st.error(f"AssemblyAI upload failed: {e}")
+        logger.error(f"AssemblyAI upload failed: {e}", exc_info=True)
         return ""
 
     if "upload_url" not in upload_result:
         return "AssemblyAI upload response invalid."
 
     audio_url = upload_result["upload_url"]
-
-    # Start transcription
     transcript_endpoint = "https://api.assemblyai.com/v2/transcript"
     json_payload = {"audio_url": audio_url}
+
     try:
         start_resp = requests.post(
             transcript_endpoint,
@@ -179,6 +192,7 @@ def transcribe_assemblyai(audio_bytes: bytes) -> str:
         transcript_id = start_resp.json()["id"]
     except Exception as e:
         st.error(f"AssemblyAI transcription start error: {e}")
+        logger.error(f"AssemblyAI start error: {e}", exc_info=True)
         return ""
 
     # Poll for completion
@@ -194,15 +208,19 @@ def transcribe_assemblyai(audio_bytes: bytes) -> str:
                 return status_data["text"].strip()
             elif status == "error":
                 st.error("AssemblyAI transcription error: " + status_data.get("error", "Unknown"))
+                logger.error(f"AssemblyAI transcription error response: {status_data}")
                 return ""
             else:
                 time.sleep(1)
         except Exception as e:
             st.error(f"AssemblyAI polling error: {e}")
+            logger.error(f"AssemblyAI polling error: {e}", exc_info=True)
             return ""
 
 def transcribe_all_in_parallel(audio_bytes: bytes):
-    """Runs the three transcription functions in parallel threads."""
+    """
+    Runs the three transcription functions in parallel threads.
+    """
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_deepgram   = executor.submit(transcribe_deepgram, audio_bytes)
         future_whisper    = executor.submit(transcribe_whisper, audio_bytes)
@@ -215,7 +233,7 @@ def transcribe_all_in_parallel(audio_bytes: bytes):
     return deepgram_text, whisper_text, assemblyai_text
 
 # ----------------------------------------------------------------------
-# 5) Save transcripts to PostgreSQL
+# 6) Save to PostgreSQL
 # ----------------------------------------------------------------------
 def save_transcripts_to_postgres(
     dept: str,
@@ -225,11 +243,10 @@ def save_transcripts_to_postgres(
     assemblyai_text: str,
     chosen_engine: str
 ):
-    """Inserts a record into the 'transcripts' table in PostgreSQL."""
+    """Insert a record into the 'transcripts' table in PostgreSQL."""
     try:
         conn = psycopg2.connect(DATABASE_URL)
         cur = conn.cursor()
-
         insert_query = """
             INSERT INTO transcripts (
                 dept,
@@ -241,7 +258,6 @@ def save_transcripts_to_postgres(
             )
             VALUES (%s, %s, %s, %s, %s, %s)
         """
-
         cur.execute(
             insert_query,
             (
@@ -258,12 +274,13 @@ def save_transcripts_to_postgres(
         conn.close()
     except Exception as e:
         st.error(f"Error saving transcript to PostgreSQL: {e}")
+        logger.error(f"Postgres error: {e}", exc_info=True)
 
 # ----------------------------------------------------------------------
-# 6) Main Streamlit App
+# 7) Main Streamlit App
 # ----------------------------------------------------------------------
 def main():
-    # CSS for appearance
+    # Custom CSS
     st.markdown("""
         <style>
         body {
@@ -300,10 +317,10 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
-    # App title
-    st.title("Voice to Text Testing (Old-Style Whisper)")
+    # Title
+    st.title("Voice to Text Testing (OpenAI >= 1.0.0 with Logging)")
 
-    # Check credentials
+    # Check missing credentials
     missing_keys = []
     if not DEEPGRAM_API_KEY:
         missing_keys.append("Deepgram")
@@ -313,28 +330,28 @@ def main():
         missing_keys.append("AssemblyAI")
 
     if missing_keys:
-        st.error(f"Missing API keys for: {', '.join(missing_keys)}. Check your .env file!")
+        st.error(f"Missing keys for: {', '.join(missing_keys)}")
         return
 
     if not DATABASE_URL:
-        st.error("Missing DATABASE_URL environment variable.")
+        st.error("Missing DATABASE_URL.")
         return
 
     if not (AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_S3_BUCKET_NAME):
-        st.error("Missing AWS credentials or bucket name.")
+        st.error("Missing AWS S3 credentials or bucket name.")
         return
 
-    # Department selection
+    # Department
     st.markdown("<p class='dept-label-custom'>Department</p>", unsafe_allow_html=True)
     selected_department = st.selectbox("", DEPARTMENTS)
 
     # Instructions
     st.markdown("""
     <div class='instruction-box'>
-      <p><strong>Instructions:</strong> 
-      1) Click the microphone below, speak, and click again to stop.<br>
-      2) Your audio will be uploaded and transcribed automatically.<br>
-      3) Then choose the best transcript and save.
+      <p><strong>Instructions:</strong><br>
+      1) Click the mic below, speak, then click again to stop.<br>
+      2) Wait for auto-transcription.<br>
+      3) Choose the best transcript and click "Save".
       </p>
     </div>
     """, unsafe_allow_html=True)
@@ -344,7 +361,7 @@ def main():
 
     if audio_data:
         st.write(f"Received {len(audio_data)} bytes of audio data.")
-        # Optional: allow user to download the raw WAV if needed for debugging
+        # Download button for debugging the raw WAV
         st.download_button(
             label="Download Recorded WAV",
             data=audio_data,
@@ -352,25 +369,24 @@ def main():
             mime="audio/wav"
         )
     else:
-        st.info("No audio recorded yet. Please click the microphone to record.")
+        st.info("No audio recorded. Click the microphone to record.")
 
-    # If audio is available
+    # If audio is available, do S3 upload + transcribe
     if audio_data:
-        # 1) Upload to S3
-        with st.spinner("Uploading audio to S3..."):
+        with st.spinner("Uploading to S3..."):
             try:
                 audio_url = upload_audio_to_s3(audio_data)
             except Exception as e:
-                st.error(f"Error uploading to S3: {e}")
+                st.error(f"S3 upload error: {e}")
+                logger.error(f"S3 upload error: {e}", exc_info=True)
                 return
 
-        # 2) Transcribe in parallel
         with st.spinner("Transcribing..."):
             deepgram_text, whisper_text, assemblyai_text = transcribe_all_in_parallel(audio_data)
 
         st.success("Transcription completed!")
 
-        # Show results in tabs
+        # Display transcripts
         st.subheader("Transcribed Results")
         tabs = st.tabs(["Deepgram", "Whisper", "AssemblyAI"])
         with tabs[0]:
@@ -383,16 +399,16 @@ def main():
         # Choose best transcript
         st.subheader("Choose the most accurate transcript")
         choice = st.radio(
-            label="Select your preferred transcript",
+            label="Select transcript",
             options=["Deepgram", "Whisper", "AssemblyAI"],
             index=0,
             label_visibility="collapsed"
         )
 
-        # Save to DB
+        # Save to database
         if st.button("Save Transcript"):
             if not (deepgram_text.strip() or whisper_text.strip() or assemblyai_text.strip()):
-                st.warning("All transcripts are empty. Cannot save.")
+                st.warning("All transcripts empty. Cannot save.")
             else:
                 save_transcripts_to_postgres(
                     dept=selected_department,
@@ -402,8 +418,10 @@ def main():
                     assemblyai_text=assemblyai_text,
                     chosen_engine=choice
                 )
-                st.success("Record saved to PostgreSQL successfully!")
+                st.success("Record saved to PostgreSQL!")
 
-# Entry point
+# ----------------------------------------------------------------------
+# 8) Entry point
+# ----------------------------------------------------------------------
 if __name__ == "__main__":
     main()
