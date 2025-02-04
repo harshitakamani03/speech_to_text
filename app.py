@@ -19,14 +19,14 @@ import logging
 # ----------------------------------------------------------------------
 load_dotenv()
 
-DEEPGRAM_API_KEY     = os.getenv("DEEPGRAM_API_KEY")
-OPENAI_API_KEY       = os.getenv("OPENAI_API_KEY")
-ASSEMBLYAI_API_KEY   = os.getenv("ASSEMBLYAI_API_KEY")
-DATABASE_URL         = os.getenv("DATABASE_URL")
-AWS_ACCESS_KEY_ID     = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_DEFAULT_REGION    = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
-AWS_S3_BUCKET_NAME    = os.getenv("AWS_S3_BUCKET_NAME")
+DEEPGRAM_API_KEY     = st.secrets("DEEPGRAM_API_KEY")
+OPENAI_API_KEY       = st.secrets("OPENAI_API_KEY")
+ASSEMBLYAI_API_KEY   = st.secrets("ASSEMBLYAI_API_KEY")
+DATABASE_URL         = st.secrets("DATABASE_URL")
+AWS_ACCESS_KEY_ID     = st.secrets("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = st.secrets("AWS_SECRET_ACCESS_KEY")
+AWS_DEFAULT_REGION    = st.secrets("AWS_DEFAULT_REGION", "us-east-1")
+AWS_S3_BUCKET_NAME    = st.secrets("AWS_S3_BUCKET_NAME")
 
 # ----------------------------------------------------------------------
 # 2) Configuration
@@ -54,8 +54,8 @@ DEPARTMENTS = [
 ]
 
 # Set up logging so we see errors in the console/terminal
-#logger = logging.getLogger(__name__)
-#logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 # ----------------------------------------------------------------------
 # 3) Upload to S3
@@ -110,7 +110,7 @@ def transcribe_whisper(audio_bytes: bytes) -> str:
         openai.Audio.transcribe("whisper-1", audio_file)
     """
     if not OPENAI_API_KEY:
-        #logger.warning("Missing OpenAI API key.")
+        logger.warning("Missing OpenAI API key.")
         return "Missing OpenAI API key."
 
     openai.api_key = OPENAI_API_KEY
@@ -125,10 +125,10 @@ def transcribe_whisper(audio_bytes: bytes) -> str:
         with open(temp_file, "rb") as audio_file:
             response = openai.Audio.transcribe("whisper-1", audio_file)
 
-        #logger.info(f"Whisper response: {response}")
+        logger.info(f"Whisper response: {response}")
         return response["text"].strip()
     except Exception as e:
-        #logger.error(f"Whisper transcription error: {e}", exc_info=True)
+        logger.error(f"Whisper transcription error: {e}", exc_info=True)
         return ""
 
 def transcribe_assemblyai(audio_bytes: bytes) -> str:
