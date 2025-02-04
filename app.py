@@ -129,9 +129,7 @@ def transcribe_whisper(audio_bytes: bytes) -> str:
 
         # 3) Transcribe using create_transcription
         with open(temp_file, "rb") as audio_file:
-            response = openai.Audio.transcribe(
-                file=audio_file,
-                model="whisper-1"
+            response = openai.Audio.transcribe("whisper-1",audio_file
             )
 
         # 4) Info: log the full response
