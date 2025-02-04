@@ -1,5 +1,5 @@
 import streamlit as st
-from st_audiorec import st_audiorec
+from streamlit_audiorec import st_audiorec
 import requests
 import openai
 import psycopg2
