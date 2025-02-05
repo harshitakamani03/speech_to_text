@@ -353,7 +353,7 @@ def main():
     st.markdown("""
     <div class='instruction-box'>
       <p><strong>Instructions:</strong><br>
-      1) Click the mic below, speak, then click again to stop.<br>
+      1) Click on the 'Start Recording' button, and then click on 'Stop' after recording.<br>
       2) Wait for auto-transcription.<br>
       3) Choose the best transcript and click "Save".
       </p>
