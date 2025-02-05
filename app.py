@@ -311,11 +311,8 @@ def main():
             font-size: 1.5rem !important;
             font-weight: 700 !important;
         }
-        /* Increase transcript text size + bold inside the tab content */
-        .transcript-text {
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
+        /* Keep transcript text at default – no custom .transcript-text style needed */
+        
         /* Make the "Save Transcript" button more attractive */
         .stButton > button {
             background-color: #2b78e4 !important;
@@ -403,17 +400,13 @@ def main():
         st.subheader("Transcribed Results")
         tabs = st.tabs(["Deepgram", "Whisper", "AssemblyAI"])
         with tabs[0]:
-            # Use custom div to apply .transcript-text style
-            transcript_display = deepgram_text if deepgram_text else "_No transcript_"
-            st.markdown(f"<div class='transcript-text'>{transcript_display}</div>", unsafe_allow_html=True)
+            st.write(deepgram_text if deepgram_text else "_No transcript_")
 
         with tabs[1]:
-            transcript_display = whisper_text if whisper_text else "_No transcript_"
-            st.markdown(f"<div class='transcript-text'>{transcript_display}</div>", unsafe_allow_html=True)
+            st.write(whisper_text if whisper_text else "_No transcript_")
 
         with tabs[2]:
-            transcript_display = assemblyai_text if assemblyai_text else "_No transcript_"
-            st.markdown(f"<div class='transcript-text'>{transcript_display}</div>", unsafe_allow_html=True)
+            st.write(assemblyai_text if assemblyai_text else "_No transcript_")
 
         # Choose best transcript
         st.subheader("Choose the most accurate transcript")
