@@ -308,10 +308,9 @@ def main():
         }
         /* Make tab labels bigger & bold (Deepgram, Whisper, AssemblyAI) */
         [data-testid="stTab-label"] {
-            font-size: 1.5rem !important;
-            font-weight: 700 !important;
+            font-size: 1.5rem !important; /* Increase font size */
+            font-weight: 700 !important;  /* Make text bold */
         }
-        /* Keep transcript text at default – no custom .transcript-text style needed */
         
         /* Make the "Save Transcript" button more attractive */
         .stButton > button {
