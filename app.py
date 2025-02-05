@@ -417,7 +417,7 @@ def main():
         )
 
         # Save to database
-        if st.button("Save Transcript"):
+        if st.button("Save"):
             if not (deepgram_text.strip() or whisper_text.strip() or assemblyai_text.strip()):
                 st.warning("All transcripts empty. Cannot save.")
             else:
