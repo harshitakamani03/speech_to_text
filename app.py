@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)  # Show debug/info/error logs in console
 
 # ----------------------------------------------------------------------
-# 2) Read Secrets (Streamlit Cloud style) or environment variables
-#    Adjust as needed if you still rely on os.getenv(). 
+# 2) Read Secrets (Streamlit Cloud style)
 # ----------------------------------------------------------------------
 DEEPGRAM_API_KEY     = st.secrets["DEEPGRAM_API_KEY"]
 OPENAI_API_KEY       = st.secrets["OPENAI_API_KEY"]
@@ -108,8 +107,9 @@ def transcribe_deepgram(audio_bytes: bytes) -> str:
 
 def transcribe_whisper(audio_bytes: bytes) -> str:
     """
-    Transcribe WAV bytes with OpenAI's new 'Audio.create_transcription' method
-    (requires openai>=1.0.0). Includes logging statements for debug.
+    Transcribe WAV bytes with the older approach (0.x) or pinned version of openai,
+    or pin openai==0.28.0 in your requirements. 
+    If you have openai>=1.0.0, you'll need to do raw HTTP or revert to an older version.
     """
     if not OPENAI_API_KEY:
         logger.warning("Missing OpenAI API key.")
@@ -127,15 +127,14 @@ def transcribe_whisper(audio_bytes: bytes) -> str:
         file_size = os.path.getsize(temp_file)
         logger.debug(f"Whisper WAV file size: {file_size} bytes")
 
-        # 3) Transcribe using create_transcription
+        # 3) Transcribe (Note: If you're on openai>=1.0.0, this will error out)
+        #    For openai<1.0, or pinned to 0.28.0, it works:
         with open(temp_file, "rb") as audio_file:
-            response = openai.Audio.transcribe("whisper-1",audio_file
-            )
+            response = openai.Audio.transcribe("whisper-1", audio_file)
 
-        # 4) Info: log the full response
         logger.info(f"Whisper response: {response}")
 
-        # 5) Extract text field
+        # 4) Extract text
         text = response.get("text", "")
         return text.strip()
 
@@ -295,19 +294,26 @@ def main():
         h1 {
             margin-bottom: 1.2rem !important;
         }
+        /* Increase department label font size significantly (by ~2) */
         .dept-label-custom {
-            font-size: 0.9rem; 
+            font-size: 2rem; 
             font-weight: 600;
             margin-top: 0.5rem;
             margin-bottom: 0.25rem;
         }
+        /* Increase gap above the instruction box */
         .instruction-box {
             background-color: #f9f9f9;
             padding: 1rem;
             margin-bottom: 1rem;
             border-left: 4px solid #2b78e4;
             border-radius: 4px;
-            margin-top: 0.3rem; 
+            margin-top: 2rem; /* was 0.3rem */
+        }
+        /* Make tab labels bigger & bold */
+        [data-testid="stTab-label"] {
+            font-size: 1.1rem;
+            font-weight: 700;
         }
         .stRadio label {
             font-weight: 500; 
@@ -359,13 +365,7 @@ def main():
 
     if audio_data:
         st.write(f"Received {len(audio_data)} bytes of audio data.")
-        # Download button for debugging the raw WAV
-        st.download_button(
-            label="Download Recorded WAV",
-            data=audio_data,
-            file_name="debug_audio.wav",
-            mime="audio/wav"
-        )
+        # Removed the download button
     else:
         st.info("No audio recorded. Click the microphone to record.")
 
@@ -416,7 +416,7 @@ def main():
                     assemblyai_text=assemblyai_text,
                     chosen_engine=choice
                 )
-                st.success("Record saved to PostgreSQL!")
+                st.success("Record saved!")
 
 # ----------------------------------------------------------------------
 # 8) Entry point
