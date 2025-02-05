@@ -17,7 +17,7 @@ import logging
 # 1) Configure Logging
 # ----------------------------------------------------------------------
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)  # Show debug/info/error logs in console
+logging.basicConfig(level=logging.DEBUG)
 
 # ----------------------------------------------------------------------
 # 2) Read Secrets (Streamlit Cloud style)
@@ -107,9 +107,8 @@ def transcribe_deepgram(audio_bytes: bytes) -> str:
 
 def transcribe_whisper(audio_bytes: bytes) -> str:
     """
-    Transcribe WAV bytes with the older approach (0.x) or pinned version of openai,
-    or pin openai==0.28.0 in your requirements. 
-    If you have openai>=1.0.0, you'll need to do raw HTTP or revert to an older version.
+    Transcribe WAV bytes with the older approach (pinned openai==0.28.0).
+    If on openai>=1.0.0, you'll need raw HTTP or revert to an older version.
     """
     if not OPENAI_API_KEY:
         logger.warning("Missing OpenAI API key.")
@@ -127,14 +126,11 @@ def transcribe_whisper(audio_bytes: bytes) -> str:
         file_size = os.path.getsize(temp_file)
         logger.debug(f"Whisper WAV file size: {file_size} bytes")
 
-        # 3) Transcribe (Note: If you're on openai>=1.0.0, this will error out)
-        #    For openai<1.0, or pinned to 0.28.0, it works:
+        # 3) Transcribe (Note: old style, openai.Audio.transcribe)
         with open(temp_file, "rb") as audio_file:
             response = openai.Audio.transcribe("whisper-1", audio_file)
 
         logger.info(f"Whisper response: {response}")
-
-        # 4) Extract text
         text = response.get("text", "")
         return text.strip()
 
@@ -310,10 +306,28 @@ def main():
             border-radius: 4px;
             margin-top: 2rem; /* was 0.3rem */
         }
-        /* Make tab labels bigger & bold */
+        /* Make tab labels bigger & bold (Deepgram, Whisper, AssemblyAI) */
         [data-testid="stTab-label"] {
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             font-weight: 700;
+        }
+        /* Increase transcript text size + bold inside the tab content */
+        .transcript-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        /* Make the "Save Transcript" button more attractive */
+        .stButton > button {
+            background-color: #2b78e4 !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+            border-radius: 6px !important;
+            border: none !important;
+            padding: 0.6rem 1.2rem !important;
+            transition: background-color 0.2s ease;
+        }
+        .stButton > button:hover {
+            background-color: #1f5bb5 !important;
         }
         .stRadio label {
             font-weight: 500; 
@@ -353,7 +367,7 @@ def main():
     st.markdown("""
     <div class='instruction-box'>
       <p><strong>Instructions:</strong><br>
-      1) Click on the 'Start Recording' button, and then click on 'Stop' after recording.<br>
+      1) Click on the 'Start Recording' button, and then click 'Stop' after recording.<br>
       2) Wait for auto-transcription.<br>
       3) Choose the best transcript and click "Save".
       </p>
@@ -365,7 +379,6 @@ def main():
 
     if audio_data:
         st.write(f"Received {len(audio_data)} bytes of audio data.")
-        # Removed the download button
     else:
         st.info("No audio recorded. Click the microphone to record.")
 
@@ -388,11 +401,17 @@ def main():
         st.subheader("Transcribed Results")
         tabs = st.tabs(["Deepgram", "Whisper", "AssemblyAI"])
         with tabs[0]:
-            st.write(deepgram_text if deepgram_text else "_No transcript_")
+            # Use custom div to apply .transcript-text style
+            transcript_display = deepgram_text if deepgram_text else "_No transcript_"
+            st.markdown(f"<div class='transcript-text'>{transcript_display}</div>", unsafe_allow_html=True)
+
         with tabs[1]:
-            st.write(whisper_text if whisper_text else "_No transcript_")
+            transcript_display = whisper_text if whisper_text else "_No transcript_"
+            st.markdown(f"<div class='transcript-text'>{transcript_display}</div>", unsafe_allow_html=True)
+
         with tabs[2]:
-            st.write(assemblyai_text if assemblyai_text else "_No transcript_")
+            transcript_display = assemblyai_text if assemblyai_text else "_No transcript_"
+            st.markdown(f"<div class='transcript-text'>{transcript_display}</div>", unsafe_allow_html=True)
 
         # Choose best transcript
         st.subheader("Choose the most accurate transcript")
