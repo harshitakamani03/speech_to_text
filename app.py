@@ -308,8 +308,8 @@ def main():
         }
         /* Make tab labels bigger & bold (Deepgram, Whisper, AssemblyAI) */
         [data-testid="stTab-label"] {
-            font-size: 1.2rem;
-            font-weight: 700;
+            font-size: 1.5rem !important;
+            font-weight: 700 !important;
         }
         /* Increase transcript text size + bold inside the tab content */
         .transcript-text {
@@ -324,10 +324,12 @@ def main():
             border-radius: 6px !important;
             border: none !important;
             padding: 0.6rem 1.2rem !important;
-            transition: background-color 0.2s ease;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
         }
         .stButton > button:hover {
             background-color: #1f5bb5 !important;
+            transform: translateY(-2px);
         }
         .stRadio label {
             font-weight: 500; 
